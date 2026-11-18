@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Tableau de bord</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Maison">
+<style>
+/* Volontairement compatible Safari iOS 9 : pas de CSS grid, pas de variables CSS, flexbox préfixé */
+* { box-sizing: border-box; -webkit-box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #141110; color: #f4ede8;
+  font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-user-select: none; -webkit-tap-highlight-color: rgba(0,0,0,0); overflow: hidden; }
+#app { height: 100%; padding: 2.2vh 1.8vw; display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column; }
+.row { display: -webkit-flex; display: flex; -webkit-flex: 1; flex: 1; min-height: 0; }
+.row + .row { margin-top: 2.2vh; }
+.card { background: #221d1a; border-radius: 22px; padding: 2.6vh 2vw; position: relative;
+  -webkit-flex: 1; flex: 1; min-width: 0; overflow: hidden; }
+.card + .card { margin-left: 1.8vw; }
+.wide { -webkit-flex: 1.6; flex: 1.6; }
+.label { font-size: 1.9vh; text-transform: uppercase; letter-spacing: 0.15em; color: #a8988d; margin-bottom: 1.2vh; }
+.accent { color: #e8673a; }
+
+/* Horloge */
+#clock { font-size: 17vh; font-weight: 200; line-height: 1; letter-spacing: -0.03em; }
+#clock .sec { font-size: 5vh; color: #e8673a; margin-left: 0.6vw; vertical-align: top; }
+#date { font-size: 3.6vh; color: #d9cdc4; margin-top: 1.4vh; }
+#greet { font-size: 2.4vh; color: #a8988d; margin-top: 1vh; }
+
+/* Météo */
+.wx-now { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+#wx-icon { font-size: 10vh; line-height: 1; margin-right: 1.5vw; }
+#wx-temp { font-size: 10vh; font-weight: 200; line-height: 1; }
+#wx-desc { font-size: 2.6vh; color: #d9cdc4; margin-top: 0.8vh; }
+#wx-extra { font-size: 2vh; color: #a8988d; margin-top: 0.6vh; }
+.days { display: -webkit-flex; display: flex; margin-top: 2.4vh; }
+.day { -webkit-flex: 1; flex: 1; text-align: center; background: #2c2521; border-radius: 14px; padding: 1.2vh 0; }
+.day + .day { margin-left: 0.8vw; }
+.day .d { font-size: 1.8vh; color: #a8988d; }
+.day .i { font-size: 3.6vh; margin: 0.4vh 0; }
+.day .t { font-size: 1.9vh; }
+.day .t span { color: #a8988d; }
+
+/* Listes */
+ul { list-style: none; }
+.list li { font-size: 2.6vh; padding: 1.1vh 0; border-bottom: 1px solid #2f2824;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+.list li .box { width: 3vh; height: 3vh; border: 2px solid #e8673a; border-radius: 7px; margin-right: 1vw;
+  -webkit-flex-shrink: 0; flex-shrink: 0; text-align: center; line-height: 2.6vh; font-size: 2.2vh; color: #141110; }
+.list li.done .box { background: #e8673a; }
+.list li.done .txt { text-decoration: line-through; color: #75685f; }
+.list li .txt { -webkit-flex: 1; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.add { position: absolute; top: 2vh; right: 1.6vw; width: 5vh; height: 5vh; border-radius: 50%;
+  background: #e8673a; color: #fff; font-size: 3.6vh; line-height: 5vh; text-align: center; font-weight: 300; }
+.clear { position: absolute; top: 2.6vh; right: 6vw; font-size: 1.8vh; color: #a8988d; padding: 0.8vh 0.6vw; }
+.empty { font-size: 2.2vh; color: #75685f; padding-top: 1vh; }
+.hint { font-size: 1.6vh; color: #5e534c; position: absolute; bottom: 1.6vh; left: 2vw; }
+
+/* Mode nuit */
+#night { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #000; opacity: 0;
+  pointer-events: none; -webkit-transition: opacity 2s; transition: opacity 2s; }
+body.is-night #night { opacity: 0.72; }
+#status { position: fixed; bottom: 0.6vh; right: 1.2vw; font-size: 1.4vh; color: #4a413b; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="row">
+    <div class="card wide">
+      <div class="label">Maintenant</div>
+      <div id="clock">--:--</div>
+      <div id="date"></div>
+      <div id="greet"></div>
+    </div>
+    <div class="card">
+      <div class="label">Météo · <span id="wx-city"></span></div>
+      <div class="wx-now">
+        <div id="wx-icon">·</div>
+        <div>
+          <div id="wx-temp">--°</div>
+        </div>
+      </div>
+      <div id="wx-desc">Chargement…</div>
+      <div id="wx-extra"></div>
+      <div class="days" id="wx-days"></div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="card">
+      <div class="label">Courses</div>
+      <div class="clear" data-list="courses">Vider cochés</div>
+      <div class="add" data-list="courses">+</div>
+      <ul class="list" id="list-courses"></ul>
+      <div class="hint">Touchez pour cocher · appui long pour supprimer</div>
+    </div>
+    <div class="card">
+      <div class="label">À ne pas oublier</div>
+      <div class="clear" data-list="rappels">Vider cochés</div>
+      <div class="add" data-list="rappels">+</div>
+      <ul class="list" id="list-rappels"></ul>
+    </div>
+  </div>
+</div>
+<div id="night"></div>
+<div id="status"></div>
+
+<script>
+/* ====== RÉGLAGES — à modifier ====== */
+var CONFIG = {
+  ville: "Paris",
+  latitude: 48.8566,
+  longitude: 2.3522,
+  nuitDebut: 23,  // heure où l'écran s'assombrit
+  nuitFin: 7      // heure où il redevient normal
+};
+/* =================================== */
+
+/* Tout le JS est en ES5 (pas de let/const/=>/fetch) pour tourner sur iOS 9. */
+var JOURS = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+var JOURS_C = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+var MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+
+function pad(n) { return n < 10 ? "0" + n : "" + n; }
+function $(id) { return document.getElementById(id); }
+
+/* ---------- Horloge ---------- */
+function tick() {
+  var d = new Date(), h = d.getHours();
+  $("clock").innerHTML = pad(h) + ":" + pad(d.getMinutes()) + '<span class="sec">' + pad(d.getSeconds()) + "</span>";
+  $("date").innerHTML = JOURS[d.getDay()].charAt(0).toUpperCase() + JOURS[d.getDay()].slice(1) +
+    " " + d.getDate() + " " + MOIS[d.getMonth()] + " " + d.getFullYear();
+  $("greet").innerHTML = h < 6 ? "Bonne nuit" : h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonne soirée";
+  var night = CONFIG.nuitDebut > CONFIG.nuitFin ? (h >= CONFIG.nuitDebut || h < CONFIG.nuitFin)
+                                                 : (h >= CONFIG.nuitDebut && h < CONFIG.nuitFin);
+  document.body.className = night ? "is-night" : "";
+}
+
+/* ---------- Météo (Open-Meteo, gratuit, sans clé) ---------- */
+var WX = {
+  0:["☀️","Ciel dégagé"],1:["🌤","Plutôt dégagé"],2:["⛅️","Partiellement nuageux"],3:["☁️","Couvert"],
+  45:["🌫","Brouillard"],48:["🌫","Brouillard givrant"],
+  51:["🌦","Bruine légère"],53:["🌦","Bruine"],55:["🌧","Bruine forte"],56:["🌧","Bruine verglaçante"],57:["🌧","Bruine verglaçante"],
+  61:["🌧","Pluie faible"],63:["🌧","Pluie"],65:["🌧","Forte pluie"],66:["🌧","Pluie verglaçante"],67:["🌧","Pluie verglaçante"],
+  71:["🌨","Neige faible"],73:["🌨","Neige"],75:["❄️","Forte neige"],77:["🌨","Grains de neige"],
+  80:["🌦","Averses"],81:["🌧","Averses"],82:["⛈","Fortes averses"],85:["🌨","Averses de neige"],86:["❄️","Averses de neige"],
+  95:["⛈","Orage"],96:["⛈","Orage et grêle"],99:["⛈","Orage et grêle"]
+};
+function wx(code) { return WX[code] || ["🌡",""]; }
+
+function loadWeather() {
+  var url = "https://api.open-meteo.com/v1/forecast?latitude=" + CONFIG.latitude + "&longitude=" + CONFIG.longitude +
+    "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m" +
+    "&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=5";
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", url, true);
+  xhr.timeout = 15000;
+  xhr.onload = function () {
+    try { renderWeather(JSON.parse(xhr.responseText)); $("status").innerHTML = "Météo à jour " + pad(new Date().getHours()) + ":" + pad(new Date().getMinutes()); }
+    catch (e) { weatherError(); }
+  };
+  xhr.onerror = xhr.ontimeout = weatherError;
+  xhr.send();
+}
+function weatherError() {
+  $("wx-desc").innerHTML = "Météo indisponible";
+  $("status").innerHTML = "Météo : échec de connexion";
+}
+function renderWeather(data) {
+  var c = data.current, w = wx(c.weather_code);
+  $("wx-icon").innerHTML = w[0];
+  $("wx-temp").innerHTML = Math.round(c.temperature_2m) + "°";
+  $("wx-desc").innerHTML = w[1];
+  $("wx-extra").innerHTML = "Ressenti " + Math.round(c.apparent_temperature) + "° · Vent " +
+    Math.round(c.wind_speed_10m) + " km/h · " + c.relative_humidity_2m + " %";
+  var html = "", dd = data.daily;
+  for (var i = 1; i < dd.time.length; i++) {
+    var p = dd.time[i].split("-"), day = new Date(+p[0], +p[1] - 1, +p[2]);
+    html += '<div class="day"><div class="d">' + JOURS_C[day.getDay()] + '</div><div class="i">' +
+      wx(dd.weather_code[i])[0] + '</div><div class="t">' + Math.round(dd.temperature_2m_max[i]) +
+      '° <span>' + Math.round(dd.temperature_2m_min[i]) + "°</span></div></div>";
+  }
+  $("wx-days").innerHTML = html;
+}
+
+/* ---------- Listes (enregistrées sur la tablette) ---------- */
+var store = {
+  get: function (k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } },
+  set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+var lists = {
+  courses: store.get("courses", [{t:"Lait",d:false},{t:"Pain",d:false},{t:"Tomates",d:true}]),
+  rappels: store.get("rappels", [{t:"Sortir les poubelles mardi soir",d:false},{t:"Appeler le plombier",d:false}])
+};
+function renderList(name) {
+  var items = lists[name], html = "";
+  for (var i = 0; i < items.length; i++) {
+    html += '<li data-list="' + name + '" data-i="' + i + '" class="' + (items[i].d ? "done" : "") + '">' +
+      '<span class="box">' + (items[i].d ? "✓" : "") + '</span><span class="txt">' + esc(items[i].t) + "</span></li>";
+  }
+  $("list-" + name).innerHTML = html || '<li class="empty">Rien pour l\'instant — touchez +</li>';
+}
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function save(name) { store.set(name, lists[name]); renderList(name); }
+
+/* Gestion du toucher : tap = cocher, appui long (0,7 s) = supprimer */
+var pressTimer = null, longPressed = false;
+function findTarget(el) { while (el && el !== document.body) { if (el.getAttribute && el.getAttribute("data-list")) return el; el = el.parentNode; } return null; }
+function onDown(e) {
+  var el = findTarget(e.target); longPressed = false;
+  if (!el || el.tagName !== "LI") return;
+  pressTimer = setTimeout(function () {
+    longPressed = true;
+    var name = el.getAttribute("data-list"), i = +el.getAttribute("data-i");
+    if (confirm("Supprimer « " + lists[name][i].t + " » ?")) { lists[name].splice(i, 1); save(name); }
+  }, 700);
+}
+function onUp() { clearTimeout(pressTimer); }
+function onClick(e) {
+  var el = findTarget(e.target);
+  if (!el || longPressed) return;
+  var name = el.getAttribute("data-list");
+  if (el.className.indexOf("add") > -1) {
+    var t = prompt(name === "courses" ? "Ajouter aux courses :" : "Ajouter un rappel :");
+    if (t && t.replace(/\s/g, "")) { lists[name].push({t: t, d: false}); save(name); }
+  } else if (el.className.indexOf("clear") > -1) {
+    var keep = [];
+    for (var j = 0; j < lists[name].length; j++) if (!lists[name][j].d) keep.push(lists[name][j]);
+    lists[name] = keep; save(name);
+  } else if (el.tagName === "LI") {
+    var i = +el.getAttribute("data-i"); lists[name][i].d = !lists[name][i].d; save(name);
+  }
+}
+document.addEventListener("touchstart", onDown, false);
+document.addEventListener("touchend", onUp, false);
+document.addEventListener("touchmove", function (e) { onUp(); e.preventDefault(); }, false);
+document.addEventListener("mousedown", onDown, false);
+document.addEventListener("mouseup", onUp, false);
+document.addEventListener("click", onClick, false);
+
+/* ---------- Démarrage ---------- */
+$("wx-city").innerHTML = esc(CONFIG.ville);
+renderList("courses"); renderList("rappels");
+tick(); setInterval(tick, 1000);
+loadWeather(); setInterval(loadWeather, 15 * 60 * 1000);
+/* Recharge complète toutes les 6 h : évite que les vieux iPad saturent leur mémoire */
+setTimeout(function () { location.reload(); }, 6 * 60 * 60 * 1000);
+</script>
+</body>
+</html>
